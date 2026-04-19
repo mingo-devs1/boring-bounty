@@ -1,26 +1,174 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand Color Palette */
+  --background: #F8F4ED; /* Warm cream */
+  --foreground: #1F2A2E; /* Deep navy-teal */
+  --card-bg: #ffffff;
+  --nav-bg: #0F1C22; /* Dark navy */
+  --primary: #FF3B3B; /* Vibrant red */
+  --primary-hover: #E53333;
+  --secondary: #14B8A6; /* Subtle teal */
+  --muted: #64748B; /* Muted text */
+  --border: #1F2A2E;
+  --accent: #FF3B3B;
+  
+  /* Premium Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(31, 42, 46, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(31, 42, 46, 0.1), 0 2px 4px -1px rgba(31, 42, 46, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(31, 42, 46, 0.1), 0 4px 6px -2px rgba(31, 42, 46, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(31, 42, 46, 0.1), 0 10px 10px -5px rgba(31, 42, 46, 0.04);
+  --shadow-primary: 0 10px 25px -5px rgba(255, 59, 59, 0.4);
+  --shadow-glass: 0 8px 32px 0 rgba(31, 42, 46, 0.1);
+  
+  /* Gradients */
+  --gradient-hero: linear-gradient(135deg, #F8F4ED 0%, #F0E8D8 100%);
+  --gradient-card: linear-gradient(180deg, #FFFFFF 0%, #FAFAFA 100%);
+  --gradient-red: linear-gradient(135deg, #FF3B3B 0%, #E53333 100%);
+  --gradient-navy: linear-gradient(135deg, #1F2A2E 0%, #0F1C22 100%);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-nav-bg: var(--nav-bg);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-muted: var(--muted);
+  --color-card-bg: var(--card-bg);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0F1C22;
+    --foreground: #F8F4ED;
+    --card-bg: #1F2A2E;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--foreground);
+}
+
+/* Glassmorphism Effect */
+.glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(31, 42, 46, 0.1);
+}
+
+.glass-dark {
+  background: rgba(15, 28, 34, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Smooth Transitions */
+* {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+/* Focus States */
+*:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Animations */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(255, 59, 59, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(255, 59, 59, 0.6);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Gradient Text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Premium Card Styles */
+.premium-card {
+  background: var(--gradient-card);
+  border: 1px solid rgba(31, 42, 46, 0.08);
+  box-shadow: var(--shadow-md);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.premium-card:hover {
+  box-shadow: var(--shadow-xl);
+  border-color: rgba(255, 59, 59, 0.2);
+}
+
+/* Skeleton Loading */
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 1000px 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Selection */
+::selection {
+  background: var(--primary);
+  color: white;
 }
