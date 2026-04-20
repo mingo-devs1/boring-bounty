@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { createSubmission } from '@/lib/server-actions/submissions';
-import { Send, Loader2, Globe } from 'lucide-react';
+import { getCategoriesByBounty } from '@/lib/server-actions/categories';
+import { Send, Loader2, Globe, Tag } from 'lucide-react';
 
 interface SubmitBountyFormProps {
   bountyId: string;
@@ -16,12 +17,22 @@ export default function SubmitBountyForm({ bountyId }: SubmitBountyFormProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
+  const [categories, setCategories] = useState<any[]>([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     github_link: '',
     demo_link: '',
     description: '',
   });
+
+  useEffect(() => {
+    // Fetch categories for this bounty
+    getCategoriesByBounty(bountyId).then((result) => {
+      if (result.success) {
+        setCategories(result.categories);
+      }
+    });
+  }, [bountyId]);
 
   if (!isAuthenticated || !user || user.role !== 'builder') {
     return (
@@ -52,12 +63,14 @@ export default function SubmitBountyForm({ bountyId }: SubmitBountyFormProps) {
         github_link: formData.github_link || undefined,
         demo_link: formData.demo_link || undefined,
         description: formData.description,
+        category_ids: selectedCategoryIds.length > 0 ? selectedCategoryIds : undefined,
       });
 
       if (result.success) {
         router.refresh();
         setIsOpen(false);
         setFormData({ github_link: '', demo_link: '', description: '' });
+        setSelectedCategoryIds([]);
       } else {
         setError(result.error || 'Failed to submit');
       }
@@ -66,6 +79,14 @@ export default function SubmitBountyForm({ bountyId }: SubmitBountyFormProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleCategory = (categoryId: string) => {
+    setSelectedCategoryIds(prev =>
+      prev.includes(categoryId)
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    );
   };
 
   if (!isOpen) {
@@ -135,6 +156,32 @@ export default function SubmitBountyForm({ bountyId }: SubmitBountyFormProps) {
               placeholder="Describe your solution, approach, and any relevant details..."
             />
           </div>
+
+          {categories.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium mb-2 text-[#1F2A2E]">Select Categories (optional)</label>
+              <div className="flex flex-wrap gap-2">
+                {categories.map((category) => (
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => toggleCategory(category.id)}
+                    className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                      selectedCategoryIds.includes(category.id)
+                        ? 'bg-[#FF3B3B] border-[#FF3B3B] text-white'
+                        : 'bg-[#F8F4ED] border-[#1F2A2E]/10 text-[#1F2A2E] hover:border-[#FF3B3B]/50'
+                    }`}
+                  >
+                    <Tag className="w-4 h-4 inline mr-1" />
+                    {category.name}
+                  </button>
+                ))}
+              </div>
+              <p className="text-sm text-[#64748B] mt-2">
+                Select one or more categories that match your submission.
+              </p>
+            </div>
+          )}
 
           <button
             type="submit"

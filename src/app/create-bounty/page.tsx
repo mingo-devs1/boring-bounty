@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { createBounty } from '@/lib/server-actions/bounties';
 import { Industry } from '@/lib/supabase';
-import { Plus, Loader2, DollarSign, Calendar, Tag } from 'lucide-react';
+import { Plus, Loader2, DollarSign, Calendar, Tag, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import MotionButton from '@/components/motion/motion-button';
 import FadeIn from '@/components/motion/fade-in';
@@ -26,6 +26,21 @@ export default function CreateBountyPage() {
     required_skills: '',
     industry: '' as Industry | '',
   });
+
+  const [categories, setCategories] = useState<{ name: string; description: string }[]>([]);
+  const [newCategory, setNewCategory] = useState({ name: '', description: '' });
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
+
+  const addCategory = () => {
+    if (newCategory.name.trim()) {
+      setCategories([...categories, newCategory]);
+      setNewCategory({ name: '', description: '' });
+    }
+  };
+
+  const removeCategory = (index: number) => {
+    setCategories(categories.filter((_, i) => i !== index));
+  };
 
   if (!isAuthenticated || !user || (user.role !== 'organization' && user.role !== 'hiring_manager')) {
     return (
@@ -75,6 +90,18 @@ export default function CreateBountyPage() {
       });
 
       if (result.success) {
+        // Create categories for the bounty
+        if (categories.length > 0) {
+          const { createCategory } = await import('@/lib/server-actions/categories');
+          for (const category of categories) {
+            await createCategory({
+              bounty_id: result.bounty.id,
+              name: category.name,
+              description: category.description,
+            });
+          }
+        }
+
         router.push(`/bounty/${result.bounty.id}`);
       } else {
         setError(result.error || 'Failed to create bounty');
@@ -222,6 +249,93 @@ export default function CreateBountyPage() {
                   <p className="text-sm text-[#64748B] mt-2">
                     Separate skills with commas. This helps match with the right builders.
                   </p>
+                </div>
+              </FadeIn>
+
+              <FadeIn delay={0.65}>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-[#1F2A2E]">Categories (optional)</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowCategoryForm(!showCategoryForm)}
+                      className="text-sm text-[#FF3B3B] hover:text-[#E53333] font-medium"
+                    >
+                      {showCategoryForm ? 'Cancel' : '+ Add Category'}
+                    </button>
+                  </div>
+                  
+                  <AnimatePresence>
+                    {showCategoryForm && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="mb-4 p-4 bg-[#F8F4ED] rounded-lg border border-[#1F2A2E]/10"
+                      >
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-xs font-medium mb-1 text-[#1F2A2E]">Category Name *</label>
+                            <input
+                              type="text"
+                              value={newCategory.name}
+                              onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                              className="w-full px-3 py-2 bg-white border border-[#1F2A2E]/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF3B3B] focus:border-transparent text-[#1F2A2E] text-sm"
+                              placeholder="e.g., Frontend Development"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium mb-1 text-[#1F2A2E]">Description (optional)</label>
+                            <textarea
+                              value={newCategory.description}
+                              onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
+                              rows={2}
+                              className="w-full px-3 py-2 bg-white border border-[#1F2A2E]/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF3B3B] focus:border-transparent text-[#1F2A2E] text-sm"
+                              placeholder="Brief description of this category..."
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={addCategory}
+                            className="w-full px-3 py-2 bg-[#FF3B3B] hover:bg-[#E53333] text-white rounded-lg font-medium text-sm transition-colors"
+                          >
+                            Add Category
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {categories.length > 0 && (
+                    <div className="space-y-2">
+                      {categories.map((category, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-3 bg-[#F8F4ED] rounded-lg border border-[#1F2A2E]/10"
+                        >
+                          <div>
+                            <p className="font-medium text-[#1F2A2E]">{category.name}</p>
+                            {category.description && (
+                              <p className="text-sm text-[#64748B]">{category.description}</p>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeCategory(index)}
+                            className="p-1 text-[#64748B] hover:text-[#FF3B3B] transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {categories.length === 0 && (
+                    <p className="text-sm text-[#64748B]">
+                      No categories added. Builders can apply to specific categories within this bounty.
+                    </p>
+                  )}
                 </div>
               </FadeIn>
 
