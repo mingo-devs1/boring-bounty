@@ -431,8 +431,141 @@ Database migrations required:
 - 002_phase3_judging_agent_upgrade.sql ✅
 - 003_phase3_scoring_weights.sql ✅
 
-Ready for Phase 4: Web3 & Trust Layer ✅
+---
+
+EDIT SUBMISSION & CATEGORIES FEATURE (Pre-Phase 4) ✅
+
+Feature: Edit Submission Capability
+-----------------------------------
+✅ Time limit enforcement: Submissions can only be edited before bounty deadline
+✅ Reviewed status check: Submissions cannot be edited after they've been reviewed
+✅ No versioning: Direct overwrite of submission data
+✅ Edit modal on builder dashboard with full form (GitHub, demo, description, categories)
+✅ Edit button only shows when submission is editable
+
+Feature: Bounty Categories (Project-Specific)
+--------------------------------------------
+✅ Categories table: Bounty-specific categories with name and description
+✅ Submission_categories junction table: Many-to-many relationship
+✅ Category management UI on create-bounty page
+✅ Category selection on submit-bounty-form
+✅ Multi-category support: One submission can link to multiple categories
+✅ Categories display on review-submissions component
+
+Database migrations required:
+- 004_edit_submission_categories.sql ✅
+
+Files modified:
+- src/lib/server-actions/categories.ts (new)
+- src/lib/server-actions/submissions.ts (updated)
+- src/app/create-bounty/page.tsx (updated)
+- src/components/submit-bounty-form.tsx (updated)
+- src/app/dashboard/builder/page.tsx (updated)
+- src/components/review-submissions.tsx (updated)
 
 ---
 
-Last updated: April 20, 2026
+PHASE 4: WEB3 & TRUST LAYER — FULLY COMPLETE ✅
+
+Reputation System
+-----------------
+✅ Reputation calculation function: Weighted average of score and win rate
+✅ Auto-update on bounty completion via database trigger
+✅ Rating display on public profiles and dashboards
+✅ Win rate calculation for builder statistics
+
+Enhanced Public Profiles
+------------------------
+✅ Work history section: Detailed submission history with status badges
+✅ Statistics sidebar: Rating, completed bounties, win rate, total submissions
+✅ Achievements/badges section: Grid display of unlocked achievements
+✅ Achievement icons and unlock timestamps
+
+Notifications System
+--------------------
+✅ Notifications table schema with type, title, message, metadata
+✅ Notification triggers:
+  - Submission status changes (pending → accepted/rejected/won)
+  - Winner announcements (with reward amount)
+  - New bounty alerts (for matching builders)
+  - Achievement unlocks
+✅ Notifications panel component with:
+  - Unread count badge
+  - Mark as read functionality
+  - Delete notifications
+  - Mark all as read
+  - Type-specific icons and colors
+✅ Notifications bell in header navigation
+
+Smart Contract Escrow (Ready for Integration)
+---------------------------------------------
+✅ Escrow contract address column on bounties table
+✅ Escrow chain column (solana, ethereum)
+✅ Payment status tracking on bounties (pending, in_escrow, released, refunded)
+✅ Payment status tracking on submissions
+✅ Payment transaction hash columns
+✅ Comments ready for Solana/Ethereum integration via Privy embedded wallet
+
+Achievements System
+-------------------
+✅ Achievements table with name, description, icon, criteria
+✅ User_achievements junction table
+✅ Pre-populated achievements:
+  - First Submission 🎯
+  - First Win 🏆
+  - Top Performer ⭐ (4.5+ rating)
+  - Streak Master 🔥 (3 wins in a row)
+  - Speed Demon ⚡ (win within 24 hours)
+  - Community Favorite 💎 (5+ positive feedbacks)
+✅ Achievement checking function with automatic unlock
+✅ Achievement notification on unlock
+
+Database migrations required:
+- 005_phase4_web3_trust.sql ✅
+
+Files created:
+- src/lib/server-actions/notifications.ts
+- src/components/notifications-panel.tsx
+- src/components/navigation.tsx
+- src/lib/server-actions/achievements.ts
+
+Files modified:
+- src/app/page.tsx (updated to use Navigation component)
+- src/app/profile/[id]/page.tsx (added achievements section and enhanced statistics)
+
+All Phase 4 features are complete and ready for production ✅
+
+---
+
+Draft Applications Feature
+--------------------------
+✅ Applications table for draft submissions (status: draft/submitted)
+✅ Application_categories junction table
+✅ RLS policies: Builders see/edit own drafts; orgs see only submitted
+✅ submit_application function: Converts draft to submission
+✅ Server actions: createApplication, updateApplication, submitApplication, deleteApplication
+✅ submit-bounty-form: Now saves as draft ("Apply" button)
+✅ Builder dashboard: Shows applications with edit/submit/delete buttons
+✅ Edit modal: Updated to work with applications
+✅ Category selection: Visible in application form
+✅ Organization review: Only shows submissions (created from submitted applications)
+
+Flow:
+1. Apply → Save as draft (hidden from orgs)
+2. Edit → Modify draft anytime
+3. Submit → Convert to submission (visible to orgs)
+4. Review → Organizations see submitted work
+
+Database migrations required:
+- 006_draft_applications.sql
+
+Files created:
+- src/lib/server-actions/applications.ts
+
+Files modified:
+- src/components/submit-bounty-form.tsx (save as draft)
+- src/app/dashboard/builder/page.tsx (show applications with edit/submit/delete)
+
+---
+
+Last updated: April 21, 2026

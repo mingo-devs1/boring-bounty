@@ -2,7 +2,8 @@ import { getOrganizationById } from '@/lib/server-actions/organizations';
 import { getUserByWalletAddress } from '@/lib/server-actions/auth';
 import { getBountiesByCreator } from '@/lib/server-actions/bounties';
 import { getSubmissionsByUser } from '@/lib/server-actions/submissions';
-import { Building2, User, Star, Trophy, Globe, Mail, MapPin, Calendar, ArrowLeft, ExternalLink } from 'lucide-react';
+import { getUserAchievements } from '@/lib/server-actions/achievements';
+import { Building2, User, Star, Trophy, Globe, Mail, MapPin, Calendar, ArrowLeft, ExternalLink, Award, TrendingUp, Target } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import FadeIn from '@/components/motion/fade-in';
@@ -28,6 +29,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
   const isBuilder = organization.role === 'builder';
   const { success: bountiesSuccess, bounties } = await getBountiesByCreator(organization.id);
   const { success: subsSuccess, submissions } = await getSubmissionsByUser(organization.id);
+  const { success: achievementsSuccess, achievements } = await getUserAchievements(organization.id);
 
   return (
     <div className="min-h-screen bg-[#F8F4ED]">
@@ -270,7 +272,33 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
 
           {/* Sidebar */}
           <div className="space-y-6">
-            <FadeIn delay={0.3}>
+            {isBuilder && achievementsSuccess && achievements.length > 0 && (
+              <FadeIn delay={0.3}>
+                <div className="bg-white rounded-2xl p-6 border border-[#1F2A2E]/10 shadow-sm">
+                  <h3 className="font-semibold mb-4 flex items-center gap-2 text-[#1F2A2E]">
+                    <Award className="w-5 h-5 text-[#FFD700]" />
+                    Achievements ({achievements.length})
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {achievements.map((userAchievement: any, index: number) => (
+                      <FadeIn key={userAchievement.id} delay={0.35 + index * 0.05}>
+                        <div className="p-3 bg-[#F8F4ED] rounded-lg border border-[#1F2A2E]/10 text-center">
+                          <div className="text-2xl mb-1">{userAchievement.achievements.icon}</div>
+                          <div className="text-xs font-medium text-[#1F2A2E] line-clamp-1">
+                            {userAchievement.achievements.name}
+                          </div>
+                          <div className="text-[10px] text-[#64748B] mt-1">
+                            {formatDistanceToNow(new Date(userAchievement.unlocked_at), { addSuffix: true })}
+                          </div>
+                        </div>
+                      </FadeIn>
+                    ))}
+                  </div>
+                </div>
+              </FadeIn>
+            )}
+
+            <FadeIn delay={0.4}>
               <div className="bg-white rounded-2xl p-6 border border-[#1F2A2E]/10 shadow-sm">
                 <h3 className="font-semibold mb-4 text-[#1F2A2E]">Statistics</h3>
                 <div className="space-y-3">
@@ -298,6 +326,14 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
                           {submissions.filter((s: any) => s.status === 'won').length}
                         </span>
                       </div>
+                      {submissions.length > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-[#64748B]">Win Rate</span>
+                          <span className="font-medium text-[#FF3B3B]">
+                            {((submissions.filter((s: any) => s.status === 'won').length / submissions.length) * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                      )}
                     </>
                   )}
                   {!isBuilder && bountiesSuccess && (

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
-import { createSubmission } from '@/lib/server-actions/submissions';
+import { createApplication } from '@/lib/server-actions/applications';
 import { getCategoriesByBounty } from '@/lib/server-actions/categories';
 import { Send, Loader2, Globe, Tag } from 'lucide-react';
 
@@ -57,7 +57,7 @@ export default function SubmitBountyForm({ bountyId }: SubmitBountyFormProps) {
     setError('');
 
     try {
-      const result = await createSubmission({
+      const result = await createApplication({
         bounty_id: bountyId,
         user_id: user.id,
         github_link: formData.github_link || undefined,
@@ -72,7 +72,7 @@ export default function SubmitBountyForm({ bountyId }: SubmitBountyFormProps) {
         setFormData({ github_link: '', demo_link: '', description: '' });
         setSelectedCategoryIds([]);
       } else {
-        setError(result.error || 'Failed to submit');
+        setError(result.error || 'Failed to save application');
       }
     } catch (err) {
       setError('An error occurred. Please try again.');
@@ -96,7 +96,7 @@ export default function SubmitBountyForm({ bountyId }: SubmitBountyFormProps) {
         className="w-full py-3 bg-[#FF3B3B] hover:bg-[#E53333] text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-[#FF3B3B]/20"
       >
         <Send className="w-5 h-5" />
-        Submit Work
+        Apply
       </button>
     );
   }
@@ -191,12 +191,12 @@ export default function SubmitBountyForm({ bountyId }: SubmitBountyFormProps) {
             {loading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Submitting...
+                Saving...
               </>
             ) : (
               <>
                 <Send className="w-5 h-5" />
-                Submit Work
+                Save as Draft
               </>
             )}
           </button>

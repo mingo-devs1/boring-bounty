@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
-import { getSubmissionsByUser, editSubmission, getSubmissionsByBounty } from '@/lib/server-actions/submissions';
+import { getApplicationsByUser, updateApplication, submitApplication, deleteApplication } from '@/lib/server-actions/applications';
 import { getCategoriesByBounty } from '@/lib/server-actions/categories';
-import { Trophy, Clock, DollarSign, Star, ExternalLink, Loader2, Edit, X } from 'lucide-react';
+import { Trophy, Clock, DollarSign, Star, ExternalLink, Loader2, Edit, X, Send, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -28,11 +28,11 @@ function AnimatedCounter({ value }: { value: number }) {
 export default function BuilderDashboardPage() {
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
-  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [editingSubmission, setEditingSubmission] = useState<any>(null);
+  const [editingApplication, setEditingApplication] = useState<any>(null);
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
@@ -49,72 +49,57 @@ export default function BuilderDashboardPage() {
       return;
     }
 
-    loadSubmissions();
+    loadApplications();
   }, [isAuthenticated, user, router]);
 
-  const loadSubmissions = async () => {
+  const loadApplications = async () => {
     if (!user) return;
     
     setLoading(true);
-    const result = await getSubmissionsByUser(user.id);
+    const result = await getApplicationsByUser(user.id);
     if (result.success) {
-      setSubmissions(result.submissions);
+      setApplications(result.applications);
     } else {
-      setError(result.error || 'Failed to load submissions');
+      setError(result.error || 'Failed to load applications');
     }
     setLoading(false);
   };
 
-  const canEditSubmission = (submission: any) => {
-    // Can edit if: not reviewed, status is pending, and bounty deadline not passed
-    if (submission.reviewed_at) return false;
-    if (submission.status !== 'pending') return false;
-    if (!submission.bounty_deadline) return false;
-    
-    const deadline = new Date(submission.bounty_deadline);
-    const now = new Date();
-    return now < deadline;
-  };
-
-  const openEditModal = async (submission: any) => {
-    setEditingSubmission(submission);
+  const openEditModal = async (application: any) => {
+    setEditingApplication(application);
     setEditFormData({
-      github_link: submission.github_link || '',
-      demo_link: submission.demo_link || '',
-      description: submission.description || '',
+      github_link: application.github_link || '',
+      demo_link: application.demo_link || '',
+      description: application.description || '',
     });
     setEditError('');
 
     // Load categories for this bounty
-    const categoriesResult = await getCategoriesByBounty(submission.bounty_id);
+    const categoriesResult = await getCategoriesByBounty(application.bounty_id);
     if (categoriesResult.success) {
       setCategories(categoriesResult.categories);
       
-      // Load selected categories for this submission
-      const submissionsResult = await getSubmissionsByBounty(submission.bounty_id);
-      if (submissionsResult.success) {
-        const sub = submissionsResult.submissions.find((s: any) => s.id === submission.id);
-        if (sub && sub.categories) {
-          setSelectedCategoryIds(sub.categories.map((c: any) => c.id));
-        } else {
-          setSelectedCategoryIds([]);
-        }
+      // Load selected categories for this application
+      if (application.application_categories) {
+        setSelectedCategoryIds(application.application_categories.map((ac: any) => ac.categories.id));
+      } else {
+        setSelectedCategoryIds([]);
       }
     }
 
     setEditModalOpen(true);
   };
 
-  const handleEditSubmission = async (e: React.FormEvent) => {
+  const handleEditApplication = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingSubmission || !user) return;
+    if (!editingApplication || !user) return;
 
     setEditLoading(true);
     setEditError('');
 
     try {
-      const result = await editSubmission({
-        submission_id: editingSubmission.id,
+      const result = await updateApplication({
+        application_id: editingApplication.id,
         user_id: user.id,
         github_link: editFormData.github_link || undefined,
         demo_link: editFormData.demo_link || undefined,
@@ -124,14 +109,36 @@ export default function BuilderDashboardPage() {
 
       if (result.success) {
         setEditModalOpen(false);
-        loadSubmissions();
+        loadApplications();
       } else {
-        setEditError(result.error || 'Failed to edit submission');
+        setEditError(result.error || 'Failed to update application');
       }
     } catch (err) {
       setEditError('An error occurred. Please try again.');
     } finally {
       setEditLoading(false);
+    }
+  };
+
+  const handleSubmitApplication = async (applicationId: string) => {
+    if (!user) return;
+
+    const result = await submitApplication(applicationId, user.id);
+    if (result.success) {
+      loadApplications();
+    } else {
+      setError(result.error || 'Failed to submit application');
+    }
+  };
+
+  const handleDeleteApplication = async (applicationId: string) => {
+    if (!user) return;
+
+    const result = await deleteApplication(applicationId, user.id);
+    if (result.success) {
+      loadApplications();
+    } else {
+      setError(result.error || 'Failed to delete application');
     }
   };
 
@@ -144,10 +151,9 @@ export default function BuilderDashboardPage() {
   };
 
   const stats = {
-    total: submissions.length,
-    won: submissions.filter((s) => s.status === 'won').length,
-    pending: submissions.filter((s) => s.status === 'pending').length,
-    rejected: submissions.filter((s) => s.status === 'rejected').length,
+    total: applications.length,
+    draft: applications.filter((a) => a.status === 'draft').length,
+    submitted: applications.filter((a) => a.status === 'submitted').length,
     averageRating: user?.rating || 0,
     completedBounties: user?.completed_bounties || 0,
   };
@@ -196,7 +202,7 @@ export default function BuilderDashboardPage() {
                   transition={{ duration: 0.2 }}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[#64748B] text-sm">Total Submissions</span>
+                    <span className="text-[#64748B] text-sm">Total Applications</span>
                     <Trophy className="w-5 h-5 text-[#FF3B3B]" />
                   </div>
                   <AnimatedCounter value={stats.total} />
@@ -208,10 +214,10 @@ export default function BuilderDashboardPage() {
                   transition={{ duration: 0.2 }}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[#64748B] text-sm">Won</span>
-                    <Star className="w-5 h-5 text-[#14B8A6]" />
+                    <span className="text-[#64748B] text-sm">Drafts</span>
+                    <Clock className="w-5 h-5 text-[#64748B]" />
                   </div>
-                  <AnimatedCounter value={stats.won} />
+                  <AnimatedCounter value={stats.draft} />
                 </motion.div>
 
                 <motion.div 
@@ -220,10 +226,10 @@ export default function BuilderDashboardPage() {
                   transition={{ duration: 0.2 }}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[#64748B] text-sm">Pending</span>
-                    <Clock className="w-5 h-5 text-[#64748B]" />
+                    <span className="text-[#64748B] text-sm">Submitted</span>
+                    <Send className="w-5 h-5 text-[#14B8A6]" />
                   </div>
-                  <AnimatedCounter value={stats.pending} />
+                  <AnimatedCounter value={stats.submitted} />
                 </motion.div>
 
                 <motion.div 
@@ -247,15 +253,15 @@ export default function BuilderDashboardPage() {
               </div>
             </FadeIn>
 
-            {/* Submissions List */}
+            {/* Applications List */}
             <FadeIn delay={0.2}>
               <div className="bg-white rounded-2xl p-8 border border-[#1F2A2E]/10 shadow-sm">
-                <h2 className="text-2xl font-semibold mb-6 text-[#1F2A2E]">Your Submissions</h2>
+                <h2 className="text-2xl font-semibold mb-6 text-[#1F2A2E]">Your Applications</h2>
                 
-                {submissions.length === 0 ? (
+                {applications.length === 0 ? (
                   <div className="text-center py-12">
                     <Trophy className="w-16 h-16 text-[#1F2A2E]/20 mx-auto mb-4" />
-                    <p className="text-[#64748B] text-lg">No submissions yet</p>
+                    <p className="text-[#64748B] text-lg">No applications yet</p>
                     <p className="text-[#64748B] mt-2">
                       <Link href="/bounties" className="text-[#FF3B3B] hover:underline font-medium">
                         Browse bounties to get started
@@ -264,65 +270,72 @@ export default function BuilderDashboardPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {submissions.map((submission, index) => (
-                      <AnimatedCard
-                        key={submission.id}
-                        href={`/bounty/${submission.bounty_id}`}
-                        delay={index * 0.05}
-                        className="p-6"
+                    {applications.map((application: any, index: number) => (
+                      <div
+                        key={application.id}
+                        className="p-6 bg-[#F8F4ED] rounded-xl border border-[#1F2A2E]/10"
                       >
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex-1">
                             <h3 className="font-semibold text-lg text-[#1F2A2E] mb-1">
-                              {submission.bounty_title || 'Unknown Bounty'}
+                              {application.bounties?.title || 'Unknown Bounty'}
                             </h3>
                             <p className="text-[#64748B] text-sm line-clamp-2 mb-2">
-                              {submission.description}
+                              {application.description}
                             </p>
                             <div className="flex items-center gap-4 text-sm text-[#64748B]">
                               <span className="flex items-center gap-1">
                                 <Clock className="w-4 h-4" />
-                                {formatDistanceToNow(new Date(submission.submitted_at), { addSuffix: true })}
+                                {formatDistanceToNow(new Date(application.created_at), { addSuffix: true })}
                               </span>
-                              {submission.score && (
+                              {application.bounties?.reward && (
                                 <span className="flex items-center gap-1">
-                                  <Star className="w-4 h-4" />
-                                  Score: {submission.score}
+                                  <DollarSign className="w-4 h-4" />
+                                  ${application.bounties.reward.toLocaleString()}
                                 </span>
                               )}
                             </div>
                           </div>
                           <div className="flex items-center gap-2 ml-4">
-                            {canEditSubmission(submission) && (
-                              <button
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  openEditModal(submission);
-                                }}
-                                className="p-2 bg-[#F8F4ED] hover:bg-[#FF3B3B] hover:text-white text-[#1F2A2E] rounded-lg transition-colors"
-                                title="Edit submission"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
+                            {application.status === 'draft' && (
+                              <>
+                                <button
+                                  onClick={() => openEditModal(application)}
+                                  className="p-2 bg-[#F8F4ED] hover:bg-[#FF3B3B] hover:text-white text-[#1F2A2E] rounded-lg transition-colors"
+                                  title="Edit application"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleSubmitApplication(application.id)}
+                                  className="p-2 bg-[#14B8A6]/10 hover:bg-[#14B8A6] text-[#14B8A6] rounded-lg transition-colors"
+                                  title="Submit application"
+                                >
+                                  <Send className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteApplication(application.id)}
+                                  className="p-2 bg-[#FF3B3B]/10 hover:bg-[#FF3B3B] text-[#FF3B3B] rounded-lg transition-colors"
+                                  title="Delete application"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
                             )}
                             <span
                               className={`px-3 py-1 text-sm font-medium rounded-full ${
-                                submission.status === 'won'
-                                  ? 'bg-[#14B8A6]/10 text-[#14B8A6] border border-[#14B8A6]/20'
-                                  : submission.status === 'accepted'
-                                  ? 'bg-[#FF3B3B]/10 text-[#FF3B3B] border border-[#FF3B3B]/20'
-                                  : submission.status === 'rejected'
-                                  ? 'bg-[#1F2A2E]/10 text-[#64748B]'
-                                  : 'bg-[#F8F4ED] text-[#1F2A2E] border border-[#1F2A2E]/10'
+                                application.status === 'draft'
+                                  ? 'bg-[#F8F4ED] text-[#1F2A2E] border border-[#1F2A2E]/10'
+                                  : 'bg-[#14B8A6]/10 text-[#14B8A6] border border-[#14B8A6]/20'
                               }`}
                             >
-                              {submission.status.charAt(0).toUpperCase() + submission.status.slice(1)}
+                              {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
                             </span>
                           </div>
                         </div>
-                        {submission.github_link && (
+                        {application.github_link && (
                           <a
-                            href={submission.github_link}
+                            href={application.github_link}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-2 text-sm text-[#FF3B3B] hover:underline"
@@ -331,7 +344,7 @@ export default function BuilderDashboardPage() {
                             View GitHub
                           </a>
                         )}
-                      </AnimatedCard>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -341,7 +354,7 @@ export default function BuilderDashboardPage() {
         )}
       </div>
 
-      {/* Edit Submission Modal */}
+      {/* Edit Application Modal */}
       <AnimatePresence>
         {editModalOpen && (
           <motion.div
@@ -357,7 +370,7 @@ export default function BuilderDashboardPage() {
               className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-semibold text-[#1F2A2E]">Edit Submission</h2>
+                <h2 className="text-2xl font-semibold text-[#1F2A2E]">Edit Application</h2>
                 <button
                   onClick={() => setEditModalOpen(false)}
                   className="p-2 hover:bg-[#F8F4ED] rounded-lg transition-colors"
@@ -372,7 +385,7 @@ export default function BuilderDashboardPage() {
                 </div>
               )}
 
-              <form onSubmit={handleEditSubmission} className="space-y-4">
+              <form onSubmit={handleEditApplication} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-2 text-[#1F2A2E]">GitHub Link (optional)</label>
                   <input
@@ -429,9 +442,9 @@ export default function BuilderDashboardPage() {
                   </div>
                 )}
 
-                {editingSubmission && editingSubmission.bounty_deadline && (
+                {editingApplication && editingApplication.bounties?.deadline && (
                   <p className="text-sm text-[#64748B]">
-                    Deadline: {new Date(editingSubmission.bounty_deadline).toLocaleDateString()}
+                    Deadline: {new Date(editingApplication.bounties.deadline).toLocaleDateString()}
                   </p>
                 )}
 
