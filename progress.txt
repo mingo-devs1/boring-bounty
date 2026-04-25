@@ -550,6 +550,22 @@ Draft Applications Feature
 ✅ Category selection: Visible in application form
 ✅ Organization review: Only shows submissions (created from submitted applications)
 
+Builder Dashboard Improvements
+------------------------------
+✅ Category badges on application cards
+✅ Confirmation dialogs for delete/submit actions
+✅ Toast notifications for success/error feedback
+✅ Improved empty state with better messaging and CTA
+✅ Loading states for all actions (submit/delete)
+✅ Better visual feedback with animations
+✅ Status badges with icons (Draft/Edit, Submitted/CheckCircle)
+✅ Deadline display with warning color if passed
+✅ Hover effects on application cards
+✅ Filter tabs (All/Drafts/Submitted) with counts
+✅ Search functionality by bounty title
+✅ Helpful message for submitted applications (explains why edit is unavailable)
+✅ Smart empty states for filtered results
+
 Flow:
 1. Apply → Save as draft (hidden from orgs)
 2. Edit → Modify draft anytime
@@ -564,8 +580,8 @@ Files created:
 
 Files modified:
 - src/components/submit-bounty-form.tsx (save as draft)
-- src/app/dashboard/builder/page.tsx (show applications with edit/submit/delete)
+- src/app/dashboard/builder/page.tsx (show applications with edit/submit/delete, improved UI/UX)
 
 ---
 
-Last updated: April 21, 2026
+Last updated: April 25, 2026

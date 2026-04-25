@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { getApplicationsByUser, updateApplication, submitApplication, deleteApplication } from '@/lib/server-actions/applications';
 import { getCategoriesByBounty } from '@/lib/server-actions/categories';
-import { Trophy, Clock, DollarSign, Star, ExternalLink, Loader2, Edit, X, Send, Trash2 } from 'lucide-react';
+import { Trophy, Clock, DollarSign, Star, ExternalLink, Loader2, Edit, X, Send, Trash2, Tag, AlertTriangle, CheckCircle, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -42,6 +42,12 @@ export default function BuilderDashboardPage() {
     demo_link: '',
     description: '',
   });
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [submitConfirm, setSubmitConfirm] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'draft' | 'submitted'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (!isAuthenticated || !user || user.role !== 'builder') {
@@ -120,26 +126,39 @@ export default function BuilderDashboardPage() {
     }
   };
 
+  const showToast = (type: 'success' | 'error', message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const handleSubmitApplication = async (applicationId: string) => {
     if (!user) return;
 
+    setActionLoading(applicationId);
     const result = await submitApplication(applicationId, user.id);
     if (result.success) {
+      showToast('success', 'Application submitted successfully!');
       loadApplications();
     } else {
-      setError(result.error || 'Failed to submit application');
+      showToast('error', result.error || 'Failed to submit application');
     }
+    setActionLoading(null);
+    setSubmitConfirm(null);
   };
 
   const handleDeleteApplication = async (applicationId: string) => {
     if (!user) return;
 
+    setActionLoading(applicationId);
     const result = await deleteApplication(applicationId, user.id);
     if (result.success) {
+      showToast('success', 'Application deleted successfully!');
       loadApplications();
     } else {
-      setError(result.error || 'Failed to delete application');
+      showToast('error', result.error || 'Failed to delete application');
     }
+    setActionLoading(null);
+    setDeleteConfirm(null);
   };
 
   const toggleCategory = (categoryId: string) => {
@@ -149,6 +168,13 @@ export default function BuilderDashboardPage() {
         : [...prev, categoryId]
     );
   };
+
+  const filteredApplications = applications.filter((application: any) => {
+    const matchesStatus = filterStatus === 'all' || application.status === filterStatus;
+    const matchesSearch = searchQuery === '' || 
+      (application.bounties?.title || '').toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
 
   const stats = {
     total: applications.length,
@@ -256,48 +282,165 @@ export default function BuilderDashboardPage() {
             {/* Applications List */}
             <FadeIn delay={0.2}>
               <div className="bg-white rounded-2xl p-8 border border-[#1F2A2E]/10 shadow-sm">
-                <h2 className="text-2xl font-semibold mb-6 text-[#1F2A2E]">Your Applications</h2>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                  <h2 className="text-2xl font-semibold text-[#1F2A2E]">Your Applications</h2>
+                  
+                  {/* Search Input */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search bounties..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full sm:w-64 px-4 py-2 pl-10 bg-[#F8F4ED] border border-[#1F2A2E]/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF3B3B] focus:border-transparent text-[#1F2A2E] text-sm"
+                    />
+                    <Trophy className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#64748B]" />
+                  </div>
+                </div>
+
+                {/* Filter Tabs */}
+                <div className="flex gap-2 mb-6">
+                  <button
+                    onClick={() => setFilterStatus('all')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      filterStatus === 'all'
+                        ? 'bg-[#FF3B3B] text-white'
+                        : 'bg-[#F8F4ED] text-[#1F2A2E] hover:bg-[#F8F4ED]/80'
+                    }`}
+                  >
+                    All ({applications.length})
+                  </button>
+                  <button
+                    onClick={() => setFilterStatus('draft')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      filterStatus === 'draft'
+                        ? 'bg-[#FF3B3B] text-white'
+                        : 'bg-[#F8F4ED] text-[#1F2A2E] hover:bg-[#F8F4ED]/80'
+                    }`}
+                  >
+                    Drafts ({applications.filter(a => a.status === 'draft').length})
+                  </button>
+                  <button
+                    onClick={() => setFilterStatus('submitted')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      filterStatus === 'submitted'
+                        ? 'bg-[#FF3B3B] text-white'
+                        : 'bg-[#F8F4ED] text-[#1F2A2E] hover:bg-[#F8F4ED]/80'
+                    }`}
+                  >
+                    Submitted ({applications.filter(a => a.status === 'submitted').length})
+                  </button>
+                </div>
                 
-                {applications.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Trophy className="w-16 h-16 text-[#1F2A2E]/20 mx-auto mb-4" />
-                    <p className="text-[#64748B] text-lg">No applications yet</p>
-                    <p className="text-[#64748B] mt-2">
-                      <Link href="/bounties" className="text-[#FF3B3B] hover:underline font-medium">
-                        Browse bounties to get started
-                      </Link>
-                    </p>
+                {filteredApplications.length === 0 ? (
+                  <div className="text-center py-16 px-8 bg-[#F8F4ED] rounded-2xl border border-[#1F2A2E]/10">
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ duration: 0.5 }}
+                    >
+                      <div className="w-20 h-20 bg-[#FF3B3B]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Trophy className="w-10 h-10 text-[#FF3B3B]" />
+                      </div>
+                      <h3 className="text-2xl font-semibold text-[#1F2A2E] mb-3">
+                        {applications.length === 0 ? 'No applications yet' : 'No matching applications'}
+                      </h3>
+                      <p className="text-[#64748B] mb-6 max-w-md mx-auto">
+                        {applications.length === 0 
+                          ? 'Start applying to bounties to build your portfolio and earn rewards. Your draft applications will appear here.'
+                          : 'Try adjusting your filters or search query.'
+                        }
+                      </p>
+                      {applications.length === 0 && (
+                        <Link
+                          href="/bounties"
+                          className="inline-flex items-center gap-2 px-6 py-3 bg-[#FF3B3B] hover:bg-[#E53333] text-white rounded-xl font-semibold transition-colors shadow-lg shadow-[#FF3B3B]/20"
+                        >
+                          Browse Bounties
+                          <Send className="w-5 h-5" />
+                        </Link>
+                      )}
+                    </motion.div>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {applications.map((application: any, index: number) => (
-                      <div
+                    {filteredApplications.map((application: any, index: number) => (
+                      <motion.div
                         key={application.id}
-                        className="p-6 bg-[#F8F4ED] rounded-xl border border-[#1F2A2E]/10"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="p-6 bg-white rounded-xl border border-[#1F2A2E]/10 shadow-sm hover:shadow-md transition-shadow"
                       >
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex-1">
-                            <h3 className="font-semibold text-lg text-[#1F2A2E] mb-1">
-                              {application.bounties?.title || 'Unknown Bounty'}
-                            </h3>
-                            <p className="text-[#64748B] text-sm line-clamp-2 mb-2">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="font-semibold text-lg text-[#1F2A2E]">
+                                {application.bounties?.title || 'Unknown Bounty'}
+                              </h3>
+                              <span
+                                className={`px-3 py-1 text-xs font-medium rounded-full ${
+                                  application.status === 'draft'
+                                    ? 'bg-[#F8F4ED] text-[#1F2A2E] border border-[#1F2A2E]/10'
+                                    : 'bg-[#14B8A6]/10 text-[#14B8A6] border border-[#14B8A6]/20'
+                                }`}
+                              >
+                                {application.status === 'draft' ? (
+                                  <span className="flex items-center gap-1">
+                                    <Edit className="w-3 h-3" />
+                                    Draft
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1">
+                                    <CheckCircle className="w-3 h-3" />
+                                    Submitted
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                            
+                            <p className="text-[#64748B] text-sm line-clamp-2 mb-3">
                               {application.description}
                             </p>
+
+                            {/* Category badges */}
+                            {application.application_categories && application.application_categories.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mb-3">
+                                {application.application_categories.map((ac: any) => (
+                                  <span
+                                    key={ac.categories.id}
+                                    className="px-2 py-1 bg-[#FF3B3B]/10 text-[#FF3B3B] text-xs rounded-full border border-[#FF3B3B]/20 flex items-center gap-1"
+                                  >
+                                    <Tag className="w-3 h-3" />
+                                    {ac.categories.name}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
                             <div className="flex items-center gap-4 text-sm text-[#64748B]">
                               <span className="flex items-center gap-1">
                                 <Clock className="w-4 h-4" />
                                 {formatDistanceToNow(new Date(application.created_at), { addSuffix: true })}
                               </span>
                               {application.bounties?.reward && (
-                                <span className="flex items-center gap-1">
+                                <span className="flex items-center gap-1 text-[#FF3B3B] font-medium">
                                   <DollarSign className="w-4 h-4" />
                                   ${application.bounties.reward.toLocaleString()}
+                                </span>
+                              )}
+                              {application.bounties?.deadline && (
+                                <span className={`flex items-center gap-1 ${
+                                  new Date(application.bounties.deadline) < new Date() ? 'text-[#FF3B3B]' : ''
+                                }`}>
+                                  <Calendar className="w-4 h-4" />
+                                  Deadline: {new Date(application.bounties.deadline).toLocaleDateString()}
                                 </span>
                               )}
                             </div>
                           </div>
                           <div className="flex items-center gap-2 ml-4">
-                            {application.status === 'draft' && (
+                            {application.status === 'draft' ? (
                               <>
                                 <button
                                   onClick={() => openEditModal(application)}
@@ -307,30 +450,33 @@ export default function BuilderDashboardPage() {
                                   <Edit className="w-4 h-4" />
                                 </button>
                                 <button
-                                  onClick={() => handleSubmitApplication(application.id)}
-                                  className="p-2 bg-[#14B8A6]/10 hover:bg-[#14B8A6] text-[#14B8A6] rounded-lg transition-colors"
+                                  onClick={() => setSubmitConfirm(application.id)}
+                                  disabled={actionLoading === application.id}
+                                  className="p-2 bg-[#14B8A6]/10 hover:bg-[#14B8A6] text-[#14B8A6] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                   title="Submit application"
                                 >
-                                  <Send className="w-4 h-4" />
+                                  {actionLoading === application.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Send className="w-4 h-4" />
+                                  )}
                                 </button>
                                 <button
-                                  onClick={() => handleDeleteApplication(application.id)}
-                                  className="p-2 bg-[#FF3B3B]/10 hover:bg-[#FF3B3B] text-[#FF3B3B] rounded-lg transition-colors"
+                                  onClick={() => setDeleteConfirm(application.id)}
+                                  disabled={actionLoading === application.id}
+                                  className="p-2 bg-[#FF3B3B]/10 hover:bg-[#FF3B3B] text-[#FF3B3B] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                   title="Delete application"
                                 >
-                                  <Trash2 className="w-4 h-4" />
+                                  {actionLoading === application.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
                                 </button>
                               </>
+                            ) : (
+                              <span className="text-xs text-[#64748B] italic">Submitted applications cannot be edited</span>
                             )}
-                            <span
-                              className={`px-3 py-1 text-sm font-medium rounded-full ${
-                                application.status === 'draft'
-                                  ? 'bg-[#F8F4ED] text-[#1F2A2E] border border-[#1F2A2E]/10'
-                                  : 'bg-[#14B8A6]/10 text-[#14B8A6] border border-[#14B8A6]/20'
-                              }`}
-                            >
-                              {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
-                            </span>
                           </div>
                         </div>
                         {application.github_link && (
@@ -344,7 +490,7 @@ export default function BuilderDashboardPage() {
                             View GitHub
                           </a>
                         )}
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                 )}
@@ -473,6 +619,113 @@ export default function BuilderDashboardPage() {
                 </div>
               </form>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-[#1F2A2E]/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl p-8 max-w-md w-full"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-[#FF3B3B]/10 rounded-full">
+                  <AlertTriangle className="w-6 h-6 text-[#FF3B3B]" />
+                </div>
+                <h3 className="text-xl font-semibold text-[#1F2A2E]">Delete Application?</h3>
+              </div>
+              <p className="text-[#64748B] mb-6">
+                Are you sure you want to delete this application? This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  className="flex-1 py-3 bg-[#F8F4ED] hover:bg-[#F8F4ED]/80 text-[#1F2A2E] rounded-lg font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteApplication(deleteConfirm)}
+                  className="flex-1 py-3 bg-[#FF3B3B] hover:bg-[#E53333] text-white rounded-lg font-medium transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Submit Confirmation Modal */}
+      <AnimatePresence>
+        {submitConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-[#1F2A2E]/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl p-8 max-w-md w-full"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-[#14B8A6]/10 rounded-full">
+                  <Send className="w-6 h-6 text-[#14B8A6]" />
+                </div>
+                <h3 className="text-xl font-semibold text-[#1F2A2E]">Submit Application?</h3>
+              </div>
+              <p className="text-[#64748B] mb-6">
+                Are you sure you want to submit this application? Once submitted, it will be visible to the organization and cannot be edited.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setSubmitConfirm(null)}
+                  className="flex-1 py-3 bg-[#F8F4ED] hover:bg-[#F8F4ED]/80 text-[#1F2A2E] rounded-lg font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleSubmitApplication(submitConfirm)}
+                  className="flex-1 py-3 bg-[#14B8A6] hover:bg-[#0D9488] text-white rounded-lg font-medium transition-colors"
+                >
+                  Submit
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className={`fixed bottom-4 right-4 px-6 py-4 rounded-xl shadow-lg flex items-center gap-3 z-50 ${
+              toast.type === 'success' ? 'bg-[#14B8A6] text-white' : 'bg-[#FF3B3B] text-white'
+            }`}
+          >
+            {toast.type === 'success' ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <AlertTriangle className="w-5 h-5" />
+            )}
+            <span className="font-medium">{toast.message}</span>
           </motion.div>
         )}
       </AnimatePresence>

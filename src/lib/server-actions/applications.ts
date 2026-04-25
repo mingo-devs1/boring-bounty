@@ -70,7 +70,12 @@ export async function createApplication(data: {
     return { success: true, application };
   } catch (error) {
     console.error('Error creating application:', error);
-    return { success: false, error: 'Failed to create application' };
+    console.error('Error details:', JSON.stringify(error, null, 2));
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to create application',
+      details: error
+    };
   }
 }
 
