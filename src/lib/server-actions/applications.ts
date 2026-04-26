@@ -91,17 +91,16 @@ export async function updateApplication(data: {
   category_ids?: string[];
 }) {
   try {
-    // Check if application exists and is a draft
+    // Check if application exists (allow editing both draft and submitted)
     const { data: existing } = await supabase
       .from('applications')
       .select('*')
       .eq('id', data.application_id)
       .eq('user_id', data.user_id)
-      .eq('status', 'draft')
       .single();
 
     if (!existing) {
-      return { success: false, error: 'Application not found or not a draft' };
+      return { success: false, error: 'Application not found' };
     }
 
     // Update application
@@ -154,13 +153,20 @@ export async function updateApplication(data: {
  */
 export async function getApplicationsByUser(userId: string) {
   try {
-    const { data, error } = await supabase
+    const { data: applications, error } = await supabase
       .from('applications')
       .select(`
         *,
-        bounties (title, reward, deadline),
+        bounties (
+          title,
+          reward,
+          deadline
+        ),
         application_categories (
-          categories (id, name, description)
+          categories (
+            id,
+            name
+          )
         )
       `)
       .eq('user_id', userId)
@@ -168,10 +174,42 @@ export async function getApplicationsByUser(userId: string) {
 
     if (error) throw error;
 
-    return { success: true, applications: data || [] };
+    return { success: true, applications: applications || [] };
   } catch (error) {
     console.error('Error fetching applications:', error);
     return { success: false, error: 'Failed to fetch applications', applications: [] };
+  }
+}
+
+export async function getApplicationByUserAndBounty(userId: string, bountyId: string) {
+  try {
+    const { data: application, error } = await supabase
+      .from('applications')
+      .select(`
+        *,
+        application_categories (
+          categories (
+            id,
+            name
+          )
+        )
+      `)
+      .eq('user_id', userId)
+      .eq('bounty_id', bountyId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned - this is expected if user hasn't applied
+        return { success: true, application: null };
+      }
+      throw error;
+    }
+
+    return { success: true, application };
+  } catch (error) {
+    console.error('Error fetching application:', error);
+    return { success: false, error: 'Failed to fetch application', application: null };
   }
 }
 

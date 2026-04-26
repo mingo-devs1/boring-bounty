@@ -440,42 +440,38 @@ export default function BuilderDashboardPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2 ml-4">
-                            {application.status === 'draft' ? (
-                              <>
-                                <button
-                                  onClick={() => openEditModal(application)}
-                                  className="p-2 bg-[#F8F4ED] hover:bg-[#FF3B3B] hover:text-white text-[#1F2A2E] rounded-lg transition-colors"
-                                  title="Edit application"
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => setSubmitConfirm(application.id)}
-                                  disabled={actionLoading === application.id}
-                                  className="p-2 bg-[#14B8A6]/10 hover:bg-[#14B8A6] text-[#14B8A6] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  title="Submit application"
-                                >
-                                  {actionLoading === application.id ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  ) : (
-                                    <Send className="w-4 h-4" />
-                                  )}
-                                </button>
-                                <button
-                                  onClick={() => setDeleteConfirm(application.id)}
-                                  disabled={actionLoading === application.id}
-                                  className="p-2 bg-[#FF3B3B]/10 hover:bg-[#FF3B3B] text-[#FF3B3B] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  title="Delete application"
-                                >
-                                  {actionLoading === application.id ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  ) : (
-                                    <Trash2 className="w-4 h-4" />
-                                  )}
-                                </button>
-                              </>
-                            ) : (
-                              <span className="text-xs text-[#64748B] italic">Submitted applications cannot be edited</span>
+                            <button
+                              onClick={() => openEditModal(application)}
+                              className="p-2 bg-[#F8F4ED] hover:bg-[#FF3B3B] hover:text-white text-[#1F2A2E] rounded-lg transition-colors"
+                              title="Edit application"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setSubmitConfirm(application.id)}
+                              disabled={actionLoading === application.id}
+                              className="p-2 bg-[#14B8A6]/10 hover:bg-[#14B8A6] text-[#14B8A6] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Update submission"
+                            >
+                              {actionLoading === application.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Send className="w-4 h-4" />
+                              )}
+                            </button>
+                            {application.status === 'draft' && (
+                              <button
+                                onClick={() => setDeleteConfirm(application.id)}
+                                disabled={actionLoading === application.id}
+                                className="p-2 bg-[#FF3B3B]/10 hover:bg-[#FF3B3B] text-[#FF3B3B] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Delete application"
+                              >
+                                {actionLoading === application.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4" />
+                                )}
+                              </button>
                             )}
                           </div>
                         </div>

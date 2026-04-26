@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
-import { createApplication } from '@/lib/server-actions/applications';
+import { createApplication, getApplicationByUserAndBounty, updateApplication, submitApplication } from '@/lib/server-actions/applications';
 import { getCategoriesByBounty } from '@/lib/server-actions/categories';
 import { Send, Loader2, Globe, Tag } from 'lucide-react';
 
@@ -19,6 +19,8 @@ export default function SubmitBountyForm({ bountyId }: SubmitBountyFormProps) {
   const [error, setError] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [existingApplication, setExistingApplication] = useState<any>(null);
+  const [checkingApplication, setCheckingApplication] = useState(true);
   const [formData, setFormData] = useState({
     github_link: '',
     demo_link: '',
@@ -32,7 +34,28 @@ export default function SubmitBountyForm({ bountyId }: SubmitBountyFormProps) {
         setCategories(result.categories);
       }
     });
-  }, [bountyId]);
+
+    // Check if user already has an application for this bounty
+    if (user) {
+      getApplicationByUserAndBounty(user.id, bountyId).then((result) => {
+        if (result.success) {
+          setExistingApplication(result.application);
+          if (result.application) {
+            // Pre-fill form with existing data
+            setFormData({
+              github_link: result.application.github_link || '',
+              demo_link: result.application.demo_link || '',
+              description: result.application.description || '',
+            });
+            setSelectedCategoryIds(
+              result.application.application_categories?.map((ac: any) => ac.categories.id) || []
+            );
+          }
+        }
+        setCheckingApplication(false);
+      });
+    }
+  }, [bountyId, user]);
 
   if (!isAuthenticated || !user || user.role !== 'builder') {
     return (
@@ -57,14 +80,28 @@ export default function SubmitBountyForm({ bountyId }: SubmitBountyFormProps) {
     setError('');
 
     try {
-      const result = await createApplication({
-        bounty_id: bountyId,
-        user_id: user.id,
-        github_link: formData.github_link || undefined,
-        demo_link: formData.demo_link || undefined,
-        description: formData.description,
-        category_ids: selectedCategoryIds.length > 0 ? selectedCategoryIds : undefined,
-      });
+      let result;
+      if (existingApplication) {
+        // Update existing application
+        result = await updateApplication({
+          application_id: existingApplication.id,
+          user_id: user.id,
+          github_link: formData.github_link || undefined,
+          demo_link: formData.demo_link || undefined,
+          description: formData.description,
+          category_ids: selectedCategoryIds.length > 0 ? selectedCategoryIds : undefined,
+        });
+      } else {
+        // Create new application
+        result = await createApplication({
+          bounty_id: bountyId,
+          user_id: user.id,
+          github_link: formData.github_link || undefined,
+          demo_link: formData.demo_link || undefined,
+          description: formData.description,
+          category_ids: selectedCategoryIds.length > 0 ? selectedCategoryIds : undefined,
+        });
+      }
 
       if (result.success) {
         router.refresh();
@@ -81,6 +118,20 @@ export default function SubmitBountyForm({ bountyId }: SubmitBountyFormProps) {
     }
   };
 
+  const handleSubmitApplication = async () => {
+    if (!existingApplication || !user) return;
+
+    setLoading(true);
+    const result = await submitApplication(existingApplication.id, user.id);
+    if (result.success) {
+      router.refresh();
+      setExistingApplication({ ...existingApplication, status: 'submitted' });
+    } else {
+      setError(result.error || 'Failed to submit application');
+    }
+    setLoading(false);
+  };
+
   const toggleCategory = (categoryId: string) => {
     setSelectedCategoryIds(prev =>
       prev.includes(categoryId)
@@ -90,6 +141,46 @@ export default function SubmitBountyForm({ bountyId }: SubmitBountyFormProps) {
   };
 
   if (!isOpen) {
+    if (checkingApplication) {
+      return (
+        <button
+          disabled
+          className="w-full py-3 bg-[#F8F4ED] text-[#64748B] rounded-xl font-semibold flex items-center justify-center gap-2 border border-[#1F2A2E]/10"
+        >
+          <Loader2 className="w-5 h-5 animate-spin" />
+          Checking...
+        </button>
+      );
+    }
+
+    if (existingApplication) {
+      // Show Edit and Update Submission buttons for both draft and submitted applications
+      return (
+        <div className="flex gap-2">
+          <button
+            onClick={() => setIsOpen(true)}
+            className="flex-1 py-3 bg-[#F8F4ED] hover:bg-[#FF3B3B] hover:text-white text-[#1F2A2E] rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 border border-[#1F2A2E]/10"
+          >
+            <Tag className="w-5 h-5" />
+            Edit
+          </button>
+          <button
+            onClick={handleSubmitApplication}
+            disabled={loading}
+            className="flex-1 py-3 bg-[#14B8A6] hover:bg-[#0D9488] text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-[#14B8A6]/20 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Send className="w-5 h-5" />
+            )}
+            {existingApplication.status === 'submitted' ? 'Update' : 'Submit'}
+          </button>
+        </div>
+      );
+    }
+
+    // No application - show Apply button
     return (
       <button
         onClick={() => setIsOpen(true)}

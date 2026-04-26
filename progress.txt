@@ -584,4 +584,50 @@ Files modified:
 
 ---
 
-Last updated: April 25, 2026
+Bug Fixes
+---------
+✅ Fixed selectWinner error by removing call to non-existent increment_completed_bounties function
+✅ Created migration 007_fix_trigger_functions.sql to fix "query has no destination for result data" error
+  - Drops ALL triggers on submissions table to prevent errors
+  - Allows markAsReviewed and selectWinner functions to work correctly
+  - Notifications and reputation updates can be handled manually in server actions if needed
+✅ Added better error logging to createCategory function to diagnose category creation errors
+✅ Added edit functionality to bounties in organization dashboard
+  - Edit button on each bounty card
+  - Edit modal with form to update title, description, reward, deadline, and required skills
+  - Uses existing updateBounty server action
+✅ Fixed SubmitBountyForm to show appropriate buttons based on application status
+  - Added getApplicationByUserAndBounty function to check for existing applications
+  - Shows "Edit Draft" and "Submit" buttons for draft applications
+  - Shows "Application Submitted" for submitted applications
+  - Shows "Apply" button for users with no application
+  - Pre-fills form with existing draft application data
+
+Database migrations required:
+- 006_draft_applications.sql
+- 007_fix_trigger_functions.sql
+- 008_fix_submit_application_function.sql (fixes RLS violation when submitting applications)
+- 009_allow_editing_submitted_submissions.sql (allows builders to update their own submissions after submission)
+
+Workflow Updates
+----------------
+✅ Updated submit_application function to update existing submission instead of creating new one
+  - Checks if submission already exists for the bounty/user combination
+  - Updates existing submission if found, creates new one if not
+  - Updates categories by deleting old ones and inserting new ones
+✅ Updated builder dashboard to allow editing submitted applications
+  - Edit button now available for both draft and submitted applications
+  - Delete button only shown for draft applications
+  - Submit button renamed to "Update" for submitted applications
+✅ Updated RLS policy to allow builders to update their own submissions
+  - Removed status restriction, now allows updating regardless of submission status
+✅ Updated SubmitBountyForm to show Edit button for submitted applications
+  - Shows "Edit" and "Update" buttons for both draft and submitted applications
+  - Button text changes based on application status ("Submit" vs "Update")
+✅ Fixed updateApplication function to allow editing submitted applications
+  - Removed draft status check from updateApplication
+  - Now allows editing applications regardless of status
+
+---
+
+Last updated: April 26, 2026

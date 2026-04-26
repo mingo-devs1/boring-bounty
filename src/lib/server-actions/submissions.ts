@@ -274,16 +274,6 @@ export async function selectWinner(submissionId: string, feedback?: string) {
 
     if (bountyError) throw bountyError;
 
-    // Update builder stats
-    const { error: statsError } = await supabaseAdmin.rpc('increment_completed_bounties', {
-      user_id: submission.user_id
-    });
-
-    if (statsError) {
-      console.error('Error updating builder stats:', statsError);
-      // Don't throw - the main operation succeeded
-    }
-
     return { success: true };
   } catch (error) {
     console.error('Error selecting winner:', error);

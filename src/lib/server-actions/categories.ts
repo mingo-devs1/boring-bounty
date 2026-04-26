@@ -50,7 +50,8 @@ export async function createCategory(data: unknown) {
     return { success: true, category };
   } catch (error) {
     console.error('Error creating category:', error);
-    return { success: false, error: 'Failed to create category' };
+    console.error('Error details:', JSON.stringify(error, null, 2));
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to create category' };
   }
 }
 

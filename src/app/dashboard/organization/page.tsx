@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
-import { getBountiesByCreator } from '@/lib/server-actions/bounties';
+import { getBountiesByCreator, updateBounty } from '@/lib/server-actions/bounties';
 import { getSubmissionsByBounty } from '@/lib/server-actions/submissions';
-import { Trophy, Clock, DollarSign, Star, Plus, Loader2, Award, TrendingUp, Zap } from 'lucide-react';
+import { Trophy, Clock, DollarSign, Star, Plus, Loader2, Award, TrendingUp, Zap, Edit, X } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import FadeIn from '@/components/motion/fade-in';
 import AnimatedCard from '@/components/motion/animated-card';
 import MotionButton from '@/components/motion/motion-button';
@@ -34,6 +34,15 @@ export default function OrganizationDashboardPage() {
   const [submissions, setSubmissions] = useState<{ [bountyId: string]: any[] }>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingBounty, setEditingBounty] = useState<any>(null);
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    description: '',
+    reward: 0,
+    deadline: '',
+    required_skills: [] as string[],
+  });
 
   useEffect(() => {
     if (!isAuthenticated || !user || (user.role !== 'organization' && user.role !== 'hiring_manager')) {
@@ -65,6 +74,50 @@ export default function OrganizationDashboardPage() {
       setError(result.error || 'Failed to load bounties');
     }
     setLoading(false);
+  };
+
+  const openEditModal = (bounty: any) => {
+    setEditingBounty(bounty);
+    setEditFormData({
+      title: bounty.title,
+      description: bounty.description,
+      reward: bounty.reward,
+      deadline: bounty.deadline ? new Date(bounty.deadline).toISOString().slice(0, 16) : '',
+      required_skills: bounty.required_skills || [],
+    });
+    setEditModalOpen(true);
+  };
+
+  const closeEditModal = () => {
+    setEditModalOpen(false);
+    setEditingBounty(null);
+    setEditFormData({
+      title: '',
+      description: '',
+      reward: 0,
+      deadline: '',
+      required_skills: [] as string[],
+    });
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBounty || !user) return;
+
+    const result = await updateBounty(editingBounty.id, {
+      title: editFormData.title,
+      description: editFormData.description,
+      reward: editFormData.reward,
+      deadline: editFormData.deadline ? new Date(editFormData.deadline).toISOString() : undefined,
+      required_skills: editFormData.required_skills,
+    });
+
+    if (result.success) {
+      closeEditModal();
+      loadBounties();
+    } else {
+      setError(result.error || 'Failed to update bounty');
+    }
   };
 
   const stats = {
@@ -230,16 +283,19 @@ export default function OrganizationDashboardPage() {
                 ) : (
                   <div className="space-y-4">
                     {bounties.map((bounty, index) => (
-                      <AnimatedCard
+                      <motion.div
                         key={bounty.id}
-                        href={`/bounty/${bounty.id}`}
-                        delay={index * 0.05}
-                        className="p-6"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="p-6 bg-white rounded-xl border border-[#1F2A2E]/10 shadow-sm hover:shadow-md transition-shadow"
                       >
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
-                              <h3 className="font-semibold text-lg text-[#1F2A2E]">{bounty.title}</h3>
+                              <Link href={`/bounty/${bounty.id}`} className="font-semibold text-lg text-[#1F2A2E] hover:text-[#FF3B3B] transition-colors">
+                                {bounty.title}
+                              </Link>
                               <motion.span
                                 initial={{ scale: 0.8 }}
                                 animate={{ scale: 1 }}
@@ -272,8 +328,17 @@ export default function OrganizationDashboardPage() {
                               </span>
                             </div>
                           </div>
+                          <div className="flex items-center gap-2 ml-4">
+                            <button
+                              onClick={() => openEditModal(bounty)}
+                              className="p-2 bg-[#F8F4ED] hover:bg-[#FF3B3B] hover:text-white text-[#1F2A2E] rounded-lg transition-colors"
+                              title="Edit bounty"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
-                      </AnimatedCard>
+                      </motion.div>
                     ))}
                   </div>
                 )}
@@ -342,6 +407,110 @@ export default function OrganizationDashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      <AnimatePresence>
+        {editModalOpen && editingBounty && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-[#1F2A2E]/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-semibold text-[#1F2A2E]">Edit Bounty</h2>
+                <button
+                  onClick={closeEditModal}
+                  className="p-2 hover:bg-[#F8F4ED] rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-[#64748B]" />
+                </button>
+              </div>
+
+              <form onSubmit={handleEditSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-[#1F2A2E] mb-2">Title</label>
+                  <input
+                    type="text"
+                    value={editFormData.title}
+                    onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                    className="w-full px-4 py-2 bg-[#F8F4ED] border border-[#1F2A2E]/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF3B3B] focus:border-transparent text-[#1F2A2E]"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[#1F2A2E] mb-2">Description</label>
+                  <textarea
+                    value={editFormData.description}
+                    onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                    className="w-full px-4 py-2 bg-[#F8F4ED] border border-[#1F2A2E]/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF3B3B] focus:border-transparent text-[#1F2A2E] min-h-[120px]"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[#1F2A2E] mb-2">Reward ($)</label>
+                  <input
+                    type="number"
+                    value={editFormData.reward}
+                    onChange={(e) => setEditFormData({ ...editFormData, reward: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-4 py-2 bg-[#F8F4ED] border border-[#1F2A2E]/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF3B3B] focus:border-transparent text-[#1F2A2E]"
+                    required
+                    min="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[#1F2A2E] mb-2">Deadline</label>
+                  <input
+                    type="datetime-local"
+                    value={editFormData.deadline}
+                    onChange={(e) => setEditFormData({ ...editFormData, deadline: e.target.value })}
+                    className="w-full px-4 py-2 bg-[#F8F4ED] border border-[#1F2A2E]/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF3B3B] focus:border-transparent text-[#1F2A2E]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[#1F2A2E] mb-2">Required Skills (comma-separated)</label>
+                  <input
+                    type="text"
+                    value={editFormData.required_skills.join(', ')}
+                    onChange={(e) => setEditFormData({ 
+                      ...editFormData, 
+                      required_skills: e.target.value.split(',').map(s => s.trim()).filter(s => s) 
+                    })}
+                    className="w-full px-4 py-2 bg-[#F8F4ED] border border-[#1F2A2E]/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF3B3B] focus:border-transparent text-[#1F2A2E]"
+                    placeholder="e.g., React, TypeScript, Next.js"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={closeEditModal}
+                    className="flex-1 py-3 bg-[#F8F4ED] hover:bg-[#F8F4ED]/80 text-[#1F2A2E] rounded-lg font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-3 bg-[#FF3B3B] hover:bg-[#E53333] text-white rounded-lg font-medium transition-colors"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
